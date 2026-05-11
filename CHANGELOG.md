@@ -10,6 +10,14 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [6.10.9] — 2026-05-12
+
+### Changed
+
+- **Documentation updates** — Updated roadmap to reflect v6.10.8 completion with Python import detection in builder.js for get_impact MCP tool.
+
+---
+
 ## [6.10.8] — 2026-05-12
 
 ### Fixed
