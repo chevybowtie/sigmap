@@ -41,16 +41,34 @@ function extractImports(filePath, content, fileSet) {
   }
 
   if (PY_EXTS.has(ext)) {
-    // from .module import ...  /  from ..pkg import ... (relative imports)
-    const re = /^[ \t]*from\s+(\.+[\w.]*)\s+import/gm;
+    // Relative imports: from .module import ...  /  from ..pkg import ...
+    const reRel = /^[ \t]*from\s+(\.+[\w.]*)\s+import/gm;
     let m;
-    while ((m = re.exec(content)) !== null) {
+    while ((m = reRel.exec(content)) !== null) {
       const dotCount = (m[1].match(/^\.+/) || [''])[0].length;
       const modPart = m[1].slice(dotCount).replace(/\./g, '/');
       let base = dir;
       for (let i = 1; i < dotCount; i++) base = path.dirname(base);
       const candidate = modPart ? path.join(base, modPart + '.py') : null;
       if (candidate && fileSet.has(candidate)) found.push(candidate);
+    }
+
+    // Absolute imports: from package.module import ... (infer from project structure)
+    const reAbs = /^[ \t]*from\s+([\w.]+)\s+import/gm;
+    while ((m = reAbs.exec(content)) !== null) {
+      const modulePath = m[1].replace(/\./g, '/');
+      const candidates = [
+        path.join(dir, modulePath + '.py'),
+        path.join(dir, modulePath, '__init__.py'),
+        path.resolve(dir, '..', modulePath + '.py'),
+        path.resolve(dir, '..', modulePath, '__init__.py'),
+      ];
+      for (const c of candidates) {
+        if (fileSet.has(c)) {
+          found.push(c);
+          break;
+        }
+      }
     }
   }
 
