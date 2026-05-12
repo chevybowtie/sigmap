@@ -83,8 +83,9 @@ function _computeHubs(graph) {
 
 // Common utility paths that should be treated as hubs regardless of fanout
 function _isHub(filePath) {
-  return /\/(utils|helpers|shared|common|constants|types|interfaces|index)\.(ts|tsx|js|jsx)$/.test(filePath)
-      || filePath.endsWith('/index.ts') || filePath.endsWith('/index.js');
+  return /\/(utils|helpers|shared|common|constants|types|interfaces|index|zzz|globals)\.(ts|tsx|js|jsx|r|R)$/.test(filePath)
+      || filePath.endsWith('/index.ts') || filePath.endsWith('/index.js')
+      || filePath.endsWith('/R/utils.R') || filePath.endsWith('/R/zzz.R') || filePath.endsWith('/R/globals.R');
 }
 
 /**
@@ -273,6 +274,24 @@ function rank(query, sigIndex, opts) {
           scored[idx].score += GRAPH_BOOST_AMOUNTS.hop2;
           scored[idx].signals.graphBoost = (scored[idx].signals.graphBoost || 0) + GRAPH_BOOST_AMOUNTS.hop2;
         }
+      }
+    }
+  }
+
+  // Compute confidence levels based on score distribution
+  if (scored.length > 0) {
+    const scores = scored.map(s => s.score);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+    const scoreRange = maxScore - minScore || 1;
+
+    // Confidence tiers: top 33% = high, next 33% = medium, rest = low
+    for (const entry of scored) {
+      if (entry.score <= 0) {
+        entry.confidence = 'low';
+      } else {
+        const normalized = (entry.score - minScore) / scoreRange;
+        entry.confidence = normalized > 0.66 ? 'high' : normalized > 0.33 ? 'medium' : 'low';
       }
     }
   }
