@@ -5024,16 +5024,17 @@ __factories["./src/graph/builder"] = function(module, exports) {
   function normalizePath(p) {
     return path.normalize(p).toLowerCase();
   }
-  function extractFileDeps(filePath, content, fileSet) {
   function resolveRPath(dir, importStr, fileSet, cwd) {
     const tried = new Set();
     const bases = [path.resolve(dir, importStr)];
     if (cwd) bases.push(path.resolve(cwd, importStr));
     for (const base of bases) {
       for (const c of [base, base + '.R', base + '.r']) {
-        if (tried.has(c)) continue;
-        tried.add(c);
+        const normC = normalizePath(c);
+        if (tried.has(normC)) continue;
+        tried.add(normC);
         if (fileSet.has(c)) return c;
+        if (fileSet.has(normC)) return normC;
       }
     }
     return null;
@@ -5113,7 +5114,15 @@ __factories["./src/graph/builder"] = function(module, exports) {
         const reNs = new RegExp('\\b' + escapeRegex(ctx.rPackage) + ':::?([A-Za-z][\\w.]*)', 'g');
         while ((m = reNs.exec(stripped)) !== null) {
           const target = ctx.rLocalDefs.get(m[1]);
-          if (target && target !== filePath && fileSet.has(target)) found.push(target);
+          if (!target) continue;
+          const normTarget = normalizePath(target);
+          const normFilePath = normalizePath(filePath);
+          if (normTarget === normFilePath) continue;
+          if (fileSet.has(target)) {
+            found.push(target);
+          } else if (fileSet.has(normTarget)) {
+            found.push(normTarget);
+          }
         }
       }
     }
@@ -5122,17 +5131,24 @@ __factories["./src/graph/builder"] = function(module, exports) {
   function build(files, cwd, ctx) {
     const fileSet = new Set(files.map((f) => path.resolve(f)));
     const fileSetNormalized = new Set([...fileSet].map(normalizePath));
-    const normToOriginal = new Map(); for (const f of fileSet) { normToOriginal.set(normalizePath(f),f); }
-    const forward = new Map(); const reverse = new Map();
-    for (const f of fileSet) { if (!forward.has(f)) forward.set(f,[]); if (!reverse.has(f)) reverse.set(f,[]); }
+    const forward = new Map();
+    const reverse = new Map();
+    for (const f of fileSet) {
+      const normF = normalizePath(f);
+      if (!forward.has(normF)) forward.set(normF, []);
+      if (!reverse.has(normF)) reverse.set(normF, []);
+    }
     for (const filePath of fileSet) {
-      let content; try { content = fs.readFileSync(filePath,'utf8'); } catch(_) { continue; }
-      const deps = extractFileDeps(filePath, content, fileSetNormalized);
-      const deps = extractFileDeps(filePath, content, fileSet, cwd, ctx);
+      let content;
+      try { content = fs.readFileSync(filePath,'utf8'); } catch(_) { continue; }
+      const normFilePath = normalizePath(filePath);
+      const deps = extractFileDeps(filePath, content, fileSetNormalized, cwd, ctx);
       if (deps.length > 0) {
-        const origDeps = deps.map((dep) => normToOriginal.get(dep)||dep);
-        forward.set(filePath, origDeps);
-        for (const dep of origDeps) { if (!reverse.has(dep)) reverse.set(dep,[]); reverse.get(dep).push(filePath); }
+        forward.set(normFilePath, deps);
+        for (const dep of deps) {
+          if (!reverse.has(dep)) reverse.set(dep, []);
+          reverse.get(dep).push(normFilePath);
+        }
       }
     }
     return { forward, reverse };
@@ -6904,6 +6920,21 @@ __factories["./src/retrieval/ranker"] = function(module, exports) {
       if (recencySet && recencySet.has(file) && score > 0) score *= recencyMultiplier;
       if (learnedWeights && score > 0) score *= learnedWeights[file] || 1.0;
       scored.push({ file, score, sigs, tokens: Math.ceil(sigs.join('\n').length / 4) });
+    }
+    // Compute confidence levels based on score distribution
+    if (scored.length > 0) {
+      const scores = scored.map(s => s.score);
+      const maxScore = Math.max(...scores);
+      const minScore = Math.min(...scores);
+      const scoreRange = maxScore - minScore || 1;
+      for (const entry of scored) {
+        if (entry.score <= 0) {
+          entry.confidence = 'low';
+        } else {
+          const normalized = (entry.score - minScore) / scoreRange;
+          entry.confidence = normalized > 0.66 ? 'high' : normalized > 0.33 ? 'medium' : 'low';
+        }
+      }
     }
     scored.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
     return scored.slice(0, topK);
