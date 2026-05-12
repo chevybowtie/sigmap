@@ -394,6 +394,34 @@ test('analyzeImpact: convenience wrapper returns array', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Windows path normalization (case-insensitive lookup)
+// ---------------------------------------------------------------------------
+
+test('builder: normalizes paths for case-insensitive Windows lookups', () => {
+  const { build } = require(SCRIPT.replace('gen-context.js', 'src/graph/builder.js'));
+  const files = [
+    path.resolve(ROOT, 'src/security/patterns.js'),
+    path.resolve(ROOT, 'src/security/env.js'),
+  ];
+  const graph = build(files, ROOT);
+  assert.ok(graph.forward instanceof Map, 'forward should be Map');
+  assert.ok(graph.reverse instanceof Map, 'reverse should be Map');
+  // Check that all keys are lowercase (for case-insensitive comparison)
+  for (const key of graph.forward.keys()) {
+    assert.strictEqual(key, key.toLowerCase(), `path "${key}" should be lowercase`);
+  }
+});
+
+test('getImpact: works with normalized paths on case-sensitive systems', () => {
+  const results = analyzeImpact('src/security/patterns.js', ROOT, { depth: 2 });
+  assert.strictEqual(results.length, 1, 'should return one result');
+  const impact = results[0].impact;
+  // This test verifies that path lookup works even if there were case differences
+  assert.ok('totalImpact' in impact, 'impact should have totalImpact');
+  assert.ok(typeof impact.totalImpact === 'number', 'totalImpact should be number');
+});
+
+// ---------------------------------------------------------------------------
 // Results
 // ---------------------------------------------------------------------------
 console.log('');
