@@ -61,9 +61,14 @@ Always run `sigmap ask` or `sigmap --query` before searching for files relevant 
 src/extractors/python_ast.py ← ast
 ```
 
-## changes (last 5 commits — 7 minutes ago)
+## changes (last 5 commits — 23 minutes ago)
 ```
-src/graph/builder.js                          ~extractFileDeps
+src/discovery/r-manifest.js                   +readDescription  +splitDeps  +readNamespace  +splitArgs
+src/extractors/deps.js                        +extractRDeps  ~extractTSDeps  ~buildReverseDepMap
+src/extractors/r.js                           +members  +regex  +definitions  +body
+src/graph/builder.js                          +normalizePath  +escapeRegex  +resolveRPath  +extractFileDeps
+src/graph/impact.js                           +normalizePath  ~isRouteFile  ~getImpact
+src/retrieval/ranker.js                       ~_computeHubs  ~_isHub
 ```
 
 ## packages
@@ -188,87 +193,6 @@ function adapt(context, adapterName, opts = {}) → string
 ```
 
 ## src
-
-### src/mcp/tools.js
-```
-module.exports = { TOOLS }
-```
-
-### src/health/scorer.js
-```
-module.exports = { score }
-function score(cwd) → { * score: number, * grad
-```
-
-### src/extractors/coverage.js
-```
-module.exports = { buildTestIndex, isTested }
-function walkFiles(dir)
-function buildTestIndex(cwd, testDirs)
-function isTested(funcName, testIndex)
-```
-
-### src/extractors/css.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/sql.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-function _cleanName(raw)
-function _normalizeParams(raw)
-```
-
-### src/extractors/graphql.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/protobuf.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/terraform.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/markdown.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/properties.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/toml.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/xml.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
-
-### src/extractors/patterns.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-```
 
 ### src/extractors/python_dataclass.js
 ```
@@ -459,21 +383,6 @@ function loadIgnorePatterns(cwd)
 function matchesIgnorePattern(dirName, patterns)
 ```
 
-### src/retrieval/ranker.js
-```
-module.exports = { rank, buildSigIndex, scoreFile, formatRankTable, formatRankJSON, DEFAULT_WEIGHTS, GRAPH_BOOST_AMOUNTS, detectIntent }
-function _computePenalty(filePath)
-function _computeHubs(graph)
-function _isHub(filePath)
-function scoreFile(filePath, sigs, queryTokens, weights) → { score: number, signals:
-function rank(query, sigIndex, opts) → { file: string, score: nu
-function _parseContextFile(contextPath) → Map<string, string[]>
-function buildSigIndex(cwd, opts) → Map<string, string[]>
-function formatRankTable(results, query) → string
-function formatRankJSON(results, query) → object
-function detectIntent(query)
-```
-
 ### src/plan/planner.js
 ```
 module.exports = { createPlan }
@@ -557,14 +466,6 @@ def extract(filepath)
 def main()
 ```
 
-### src/extractors/r.js
-```
-module.exports = { extract }
-function extract(src) → string[]
-function readBalancedParens(src, openIdx, cap = 4096)
-function normalizeParams(raw)
-```
-
 ### src/discovery/source-root-resolver.js
 ```
 module.exports = { resolveSourceRoots }
@@ -624,13 +525,63 @@ function buildReverseGraph(graph)
 function analyze(files, cwd)
 ```
 
+### src/discovery/r-manifest.js
+```
+module.exports = { readDescription, readNamespace, collectLocalDefs }
+function readDescription(cwd) → object|null
+function splitDeps(value)
+function readNamespace(cwd) → object|null
+function splitArgs(raw)
+function stripQuotes(s)
+function collectLocalDefs(rFiles) → Map<string, string>
+```
+
+### src/extractors/deps.js
+```
+module.exports = { extractPythonDeps, extractTSDeps, extractRDeps, buildReverseDepMap }
+function extractPythonDeps(src) → string[]
+function extractTSDeps(src) → string[]
+function extractRDeps(src) → string[]
+function buildReverseDepMap(forwardMap) → Map<string, string[]>
+```
+
+### src/extractors/r.js
+```
+module.exports = { extract }
+function extract(src) → string[]
+function collectRoxygenHints(src)
+function pickRoxygenLine(block, tag)
+function applyHint(hints, name)
+function extractListMethods(body, cap)
+function inAnyRange(pos, ranges)
+function readFirstStringArg(body)
+function readBalancedParens(src, openIdx, cap = 16384)
+function normalizeParams(raw)
+```
+
 ### src/graph/builder.js
 ```
-module.exports = { build, buildFromCwd, extractFileDeps }
+module.exports = { build, buildFromCwd, extractFileDeps, normalizePath }
+function normalizePath(p)
 function resolveJsPath(dir, importStr, fileSet) → string|null
-function extractFileDeps(filePath, content, fileSet) → string[]
-function build(files, cwd) → { forward: Map<string,str
+function escapeRegex(s)
+function resolveRPath(dir, importStr, fileSet, cwd)
+function extractFileDeps(filePath, content, fileSet, cwd, ctx) → string[]
+function build(files, cwd, ctx) → { forward: Map<string,str
 function buildFromCwd(cwd, opts) → { forward: Map<string,str
+```
+
+### src/graph/impact.js
+```
+module.exports = { getImpact, analyzeImpact, formatImpact, formatImpactJSON }
+function normalizePath(p)
+function bfs(startFile, reverseGraph, maxDepth) → { direct: Set<string>, tr
+function isTestFile(f)
+function isRouteFile(f)
+function getImpact(changedFile, graph, opts) → { * changed: string, * di
+function analyzeImpact(changedFiles, cwd, opts) → { file: string, impact: o
+function formatImpact(result) → string
+function formatImpactJSON(result) → object
 ```
 
 ### src/mcp/server.js
@@ -640,4 +591,19 @@ function respond(id, result)
 function respondError(id, code, message)
 function dispatch(msg, cwd)
 function start(cwd)
+```
+
+### src/retrieval/ranker.js
+```
+module.exports = { rank, buildSigIndex, scoreFile, formatRankTable, formatRankJSON, DEFAULT_WEIGHTS, GRAPH_BOOST_AMOUNTS, detectIntent }
+function _computePenalty(filePath)
+function _computeHubs(graph)
+function _isHub(filePath)
+function scoreFile(filePath, sigs, queryTokens, weights) → { score: number, signals:
+function rank(query, sigIndex, opts) → { file: string, score: nu
+function _parseContextFile(contextPath) → Map<string, string[]>
+function buildSigIndex(cwd, opts) → Map<string, string[]>
+function formatRankTable(results, query) → string
+function formatRankJSON(results, query) → object
+function detectIntent(query)
 ```

@@ -278,6 +278,24 @@ function rank(query, sigIndex, opts) {
     }
   }
 
+  // Compute confidence levels based on score distribution
+  if (scored.length > 0) {
+    const scores = scored.map(s => s.score);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+    const scoreRange = maxScore - minScore || 1;
+
+    // Confidence tiers: top 33% = high, next 33% = medium, rest = low
+    for (const entry of scored) {
+      if (entry.score <= 0) {
+        entry.confidence = 'low';
+      } else {
+        const normalized = (entry.score - minScore) / scoreRange;
+        entry.confidence = normalized > 0.66 ? 'high' : normalized > 0.33 ? 'medium' : 'low';
+      }
+    }
+  }
+
   scored.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
   return scored.slice(0, topK);
 }

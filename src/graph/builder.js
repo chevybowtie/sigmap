@@ -71,6 +71,8 @@ function resolveRPath(dir, importStr, fileSet, cwd) {
       const normC = normalizePath(c);
       if (tried.has(normC)) continue;
       tried.add(normC);
+      // Check both original and normalized paths (tests may pass non-normalized fileSet)
+      if (fileSet.has(c)) return c;
       if (fileSet.has(normC)) return normC;
     }
   }
@@ -247,9 +249,16 @@ function extractFileDeps(filePath, content, fileSet, cwd, ctx) {
       const reNs = new RegExp(`\\b${escapeRegex(pkg)}:::?([A-Za-z][\\w.]*)`, 'g');
       while ((m = reNs.exec(stripped)) !== null) {
         const target = ctx.rLocalDefs.get(m[1]);
-        const normTarget = target ? normalizePath(target) : null;
+        if (!target) continue;
+        const normTarget = normalizePath(target);
         const normFilePath = normalizePath(filePath);
-        if (normTarget && normTarget !== normFilePath && fileSet.has(normTarget)) found.push(normTarget);
+        if (normTarget === normFilePath) continue;
+        // Check both original and normalized paths (tests may pass non-normalized fileSet)
+        if (fileSet.has(target)) {
+          found.push(target);
+        } else if (fileSet.has(normTarget)) {
+          found.push(normTarget);
+        }
       }
     }
   }

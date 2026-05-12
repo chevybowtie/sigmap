@@ -19,7 +19,7 @@ const path   = require('path');
 const ROOT = path.join(__dirname, '..');
 const { readDescription, readNamespace, collectLocalDefs } =
   require(path.join(ROOT, 'src', 'discovery', 'r-manifest'));
-const { build, extractFileDeps, buildFromCwd } =
+const { build, extractFileDeps, buildFromCwd, normalizePath } =
   require(path.join(ROOT, 'src', 'graph', 'builder'));
 
 let failures = 0;
@@ -93,9 +93,13 @@ test('buildFromCwd: auto-builds R namespace context from DESCRIPTION', () => {
   const main    = path.resolve(FIXTURE, 'R', 'main.R');
   const helpers = path.resolve(FIXTURE, 'R', 'helpers.R');
   const addFile = path.resolve(FIXTURE, 'R', 'add.R');
-  const mainDeps = graph.forward.get(main) || [];
-  assert.ok(mainDeps.includes(helpers), `main.R should depend on helpers.R; got ${JSON.stringify(mainDeps)}`);
-  assert.ok(mainDeps.includes(addFile),  `main.R should depend on add.R (via siglocal::add); got ${JSON.stringify(mainDeps)}`);
+  // Use normalized paths for graph lookups (consistent with impact tests)
+  const mainNorm = normalizePath(main);
+  const helpersNorm = normalizePath(helpers);
+  const addFileNorm = normalizePath(addFile);
+  const mainDeps = graph.forward.get(mainNorm) || [];
+  assert.ok(mainDeps.includes(helpersNorm), `main.R should depend on helpers.R; got ${JSON.stringify(mainDeps)}`);
+  assert.ok(mainDeps.includes(addFileNorm),  `main.R should depend on add.R (via siglocal::add); got ${JSON.stringify(mainDeps)}`);
 });
 
 // ── Ranker hub heuristic ────────────────────────────────────────────────────
