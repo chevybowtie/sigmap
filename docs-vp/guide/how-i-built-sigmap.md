@@ -192,17 +192,17 @@ I was using an LLM to improve a tool designed to make LLMs work better. Better e
 ## Proof block
 
 ```
-Benchmark: sigmap-v6.6-main
-Date: 2026-05-03
+Benchmark: sigmap-v6.10-main
+Date: 2026-05-12
 
-Hit@5:              80.0%  (baseline 13.6%  — 5.9× lift)
-Prompt reduction:   41.0%
+Hit@5:              78.9%  (baseline 13.6%  — 5.8× lift)
+Prompt reduction:   40.6%
 Task success:       52.2%  (baseline 10%)
-Prompts per task:   1.68   (baseline 2.84)
-Token reduction:    40–98% (avg 96.8% across 18 repos)
+Prompts per task:   1.66   (baseline 2.84)
+Token reduction:    40–98% (avg 97.9% across 21 repos, including R language)
 ```
 
-Measured on 90 coding tasks across 18 real public repos. No LLM API. Fully reproducible.
+Measured on 90 coding tasks across 21 real public repos (18 core + 3 R repos). No LLM API. Fully reproducible.
 
 **Benchmark resources:**
 - [Full methodology →](/guide/benchmark)
